@@ -1,0 +1,1770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Resonant Break</title>
+<script src="https://cdn.jsdelivr.net/npm/tone@15.1.22/dist/Tone.js"></script>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/" } }
+</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1A0A2E; overflow: hidden; width: 100vw; height: 100vh; }
+canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
+#overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; touch-action: none; }
+#startScreen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: #1A0A2E;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: opacity 0.6s ease-out;
+  z-index: 100;
+  touch-action: none;
+}
+#startScreen.hidden { opacity: 0; pointer-events: none; }
+#startCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+#startSVG {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+@keyframes crystalPulse { 0%,100% { transform: scale(1.0); } 50% { transform: scale(1.04); } }
+
+#hudCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+#postWave {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.88);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 50;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.5s ease;
+  font-family: 'Courier New', monospace; color: #F5F5DC;
+}
+#postWave.visible { opacity: 1; pointer-events: all; }
+#postWave .wave-title { font-size: 14px; letter-spacing: 0.3em; color: #00FFB3; margin-bottom: 20px; }
+#postWave .score-display { font-size: 72px; color: #E040FB; text-shadow: 0 0 30px #E040FB; margin-bottom: 8px; }
+#postWave .score-label { font-size: 12px; letter-spacing: 0.2em; color: rgba(245,245,220,0.5); margin-bottom: 6px; }
+#postWave .highscore-label { font-size: 13px; letter-spacing: 0.15em; color: #00FFB3; margin-bottom: 40px; min-height: 20px; }
+#postWave .continue-btn {
+  font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 0.3em;
+  color: #00FFB3; border: 1px solid #00FFB3; background: transparent; padding: 12px 28px;
+  cursor: pointer; animation: blink 1s step-end infinite;
+}
+#postWave .continue-btn:hover { background: rgba(0,255,179,0.1); }
+
+#gameOver {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 60;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.8s ease;
+  font-family: 'Courier New', monospace;
+}
+#gameOver.visible { opacity: 1; pointer-events: all; }
+#gameOver .go-title { font-size: 42px; color: #E040FB; letter-spacing: 0.2em; text-shadow: 0 0 40px #E040FB; margin-bottom: 16px; }
+#gameOver .go-score { font-size: 28px; color: #F5F5DC; margin-bottom: 8px; }
+#gameOver .go-hs { font-size: 14px; color: #00FFB3; letter-spacing: 0.15em; margin-bottom: 40px; }
+#gameOver .go-btn {
+  font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 0.3em;
+  color: #00FFB3; border: 1px solid #00FFB3; background: transparent; padding: 12px 28px;
+  cursor: pointer;
+}
+
+#winScreen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.95);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 60;
+  opacity: 0; pointer-events: none;
+  transition: opacity 1s ease;
+  font-family: 'Courier New', monospace;
+}
+#winScreen.visible { opacity: 1; pointer-events: all; }
+#winScreen .win-title { font-size: 38px; color: #00FFB3; letter-spacing: 0.2em; text-shadow: 0 0 40px #00FFB3; margin-bottom: 12px; }
+#winScreen .win-tagline { font-size: 14px; color: rgba(245,245,220,0.6); letter-spacing: 0.2em; margin-bottom: 30px; font-style: italic; }
+#winScreen .win-score { font-size: 64px; color: #E040FB; text-shadow: 0 0 30px #E040FB; margin-bottom: 8px; }
+#winScreen .win-hs { font-size: 13px; color: #00FFB3; letter-spacing: 0.15em; margin-bottom: 40px; }
+#winScreen .win-btn {
+  font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 0.3em;
+  color: #00FFB3; border: 1px solid #00FFB3; background: transparent; padding: 12px 28px;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- Start Screen -->
+<div id="startScreen">
+  <canvas id="startCanvas"></canvas>
+  <svg id="startSVG" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="6" result="blur"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+    </defs>
+    <!-- Option B: Crystal silhouette -->
+    <g id="crystalGroup">
+      <path id="crystalPath"
+        d="M0,-38 L10,-12 L32,-8 L14,8 L20,34 L0,20 L-20,34 L-14,8 L-32,-8 L-10,-12 Z"
+        fill="#E040FB"
+        opacity="0.85"
+        filter="url(#glow)"
+        style="animation: crystalPulse 3.2s ease-in-out infinite; transform-origin: 0 0;"
+      />
+    </g>
+    <!-- Option A: Title glow -->
+    <text id="mainTitle"
+      x="50%" y="44%"
+      text-anchor="middle"
+      font-family="'Courier New', monospace"
+      font-size="52px"
+      font-weight="700"
+      fill="#E040FB"
+      letter-spacing="0.15em"
+      filter="url(#glow)"
+      style="animation: fadeIn 1.8s ease-out forwards; opacity: 0;"
+    >RESONANT BREAK</text>
+    <text
+      x="50%" y="54%"
+      text-anchor="middle"
+      font-family="'Courier New', monospace"
+      font-size="16px"
+      fill="#F5F5DC"
+      letter-spacing="0.25em"
+      opacity="0.7"
+      style="animation: fadeIn 2.4s ease-out forwards; opacity: 0;"
+    >TUNE · PREDICT · SHATTER</text>
+    <text id="pressPrompt"
+      x="50%" y="70%"
+      text-anchor="middle"
+      font-family="'Courier New', monospace"
+      font-size="13px"
+      fill="#00FFB3"
+      letter-spacing="0.3em"
+      style="animation: blink 1s step-end infinite; opacity: 0; animation-delay: 1.5s; animation-fill-mode: forwards;"
+    >PRESS ANYWHERE TO BEGIN</text>
+  </svg>
+</div>
+
+<!-- HUD Canvas is created dynamically in JS -->
+
+<!-- Post-wave screen -->
+<div id="postWave">
+  <div class="wave-title" id="postWaveTitle">WAVE 1 COMPLETE</div>
+  <div class="score-display" id="postWaveScore">0</div>
+  <div class="score-label">RESONANCE SCORE</div>
+  <div class="highscore-label" id="postWaveHS"></div>
+  <button class="continue-btn" id="postWaveContinue">CONTINUE ↗</button>
+</div>
+
+<!-- Game Over -->
+<div id="gameOver">
+  <div class="go-title">SIGNAL LOST</div>
+  <div class="go-score" id="goScore">0</div>
+  <div class="go-hs" id="goHS"></div>
+  <button class="go-btn" id="goBtn">TRY AGAIN</button>
+</div>
+
+<!-- Win Screen -->
+<div id="winScreen">
+  <div class="win-title">RESONANCE COMPLETE</div>
+  <div class="win-tagline">The gap between almost and perfect is a frequency you learn to feel.</div>
+  <div class="win-score" id="winScore">0</div>
+  <div class="win-hs" id="winHS"></div>
+  <button class="win-btn" id="winBtn">PLAY AGAIN</button>
+</div>
+
+<!-- GitHub link -->
+<a href="https://github.com/nishivector/resonant-break" target="_blank" style="position:fixed;bottom:16px;right:16px;color:rgba(255,255,255,0.4);font-size:12px;text-decoration:none;font-family:monospace;z-index:1000;">GitHub ↗</a>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+const SCORE_KEY = 'resonant-break-highscore';
+const BG_COLOR = 0x1A0A2E;
+const COL_PRIMARY = '#E040FB';
+const COL_SECONDARY = '#F5F5DC';
+const COL_ACCENT = '#00FFB3';
+const COL_AMBER = '#FFB300';
+
+// Wave configuration
+const WAVES = [
+  { // Wave 1
+    name: 'FIRST SIGNAL',
+    enemyCount: 2, maxSimultaneous: 1,
+    baseHzRange: [0.8, 0.8], driftAmp: 0, driftRate: 0,
+    perfectWindow: 65, partialWindow: 165,
+    armoured: 0, hasConductor: false,
+    duration: 45000
+  },
+  { // Wave 2
+    name: 'INTERFERENCE',
+    enemyCount: 4, maxSimultaneous: 2,
+    baseHzRange: [0.8, 2.4], driftAmp: 0.05, driftRate: 0.3,
+    perfectWindow: 50, partialWindow: 150,
+    armoured: 0, hasConductor: false,
+    duration: 60000
+  },
+  { // Wave 3
+    name: 'DRIFT',
+    enemyCount: 6, maxSimultaneous: 2,
+    baseHzRange: [0.8, 3.2], driftAmp: 0.15, driftRate: 0.4,
+    perfectWindow: 35, partialWindow: 135,
+    armoured: 0, hasConductor: false,
+    duration: 75000
+  },
+  { // Wave 4
+    name: 'NOISE FLOOR',
+    enemyCount: 8, maxSimultaneous: 3,
+    baseHzRange: [0.8, 3.5], driftAmp: 0.25, driftRate: 0.5,
+    perfectWindow: 20, partialWindow: 120,
+    armoured: 2, hasConductor: false,
+    duration: 90000
+  },
+  { // Wave 5 — Conductor
+    name: 'CONDUCTOR',
+    enemyCount: 6, maxSimultaneous: 6, // 1 conductor + 5 standard
+    baseHzRange: [0.8, 3.5], driftAmp: 0.40, driftRate: 0.6,
+    perfectWindow: 10, partialWindow: 110,
+    armoured: 0, hasConductor: true,
+    duration: 120000
+  }
+];
+
+// ─── Global State ─────────────────────────────────────────────────────────────
+let gameState = 'start'; // start | playing | postwave | gameover | win
+let hasEverActed = false;
+let currentWave = 0;
+let totalScore = 0;
+let waveScore = 0;
+let health = 3; // health rings
+let multiplierStack = 1;
+let gameSpeed = 1.0;
+let gameSpeedLerpTimer = 0;
+let lastTime = 0;
+let elapsedGameTime = 0;
+
+// Enemy list
+let enemies = [];
+let enemiesSpawnedThisWave = 0;
+let enemiesKilledThisWave = 0;
+
+// Pending spawns
+let spawnQueue = [];
+let lastSpawnTime = 0;
+
+// Projectiles in flight
+let projectiles = [];
+
+// Visual fragments
+let fragments = [];
+
+// Conductor rings
+let conductorRings = [];
+
+// Player input
+let isCharging = false;
+let playerHz = 1.0;
+let chargeStartTime = 0;
+let pointerX = 0;
+
+// Lock flash
+let lockFlashTimer = 0;
+let wasLocked = false;
+
+// Near-win state
+let nearWin = false;
+
+// ─── THREE.JS Setup ──────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(BG_COLOR);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+// Make canvas position:fixed
+renderer.domElement.style.position = 'fixed';
+renderer.domElement.style.top = '0';
+renderer.domElement.style.left = '0';
+renderer.domElement.style.width = '100%';
+renderer.domElement.style.height = '100%';
+renderer.domElement.style.touchAction = 'none';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(BG_COLOR);
+
+// Orthographic camera
+let camera;
+function setupCamera() {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const W = rect.width || window.innerWidth;
+  const H = rect.height || window.innerHeight;
+  const aspect = W / H;
+  const frustumH = 600;
+  const frustumW = frustumH * aspect;
+  camera = new THREE.OrthographicCamera(-frustumW/2, frustumW/2, frustumH/2, -frustumH/2, 0.1, 1000);
+  camera.position.z = 10;
+}
+setupCamera();
+
+// Bloom composer
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(1024, 512), 1.8, 0.4, 0.55);
+composer.addPass(bloomPass);
+
+// ─── HUD Canvas Setup ────────────────────────────────────────────────────────
+const hudCanvas = document.createElement('canvas');
+hudCanvas.style.position = 'fixed';
+hudCanvas.style.top = '0';
+hudCanvas.style.left = '0';
+hudCanvas.style.width = '100%';
+hudCanvas.style.height = '100%';
+hudCanvas.style.pointerEvents = 'none';
+hudCanvas.style.touchAction = 'none';
+hudCanvas.style.zIndex = '10';
+document.body.appendChild(hudCanvas);
+const hud = hudCanvas.getContext('2d');
+
+function resizeAll() {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  renderer.setSize(W, H);
+  composer.setSize(W, H);
+  hudCanvas.width = W;
+  hudCanvas.height = H;
+  setupCamera();
+}
+resizeAll();
+window.addEventListener('resize', resizeAll);
+
+// ─── Audio ───────────────────────────────────────────────────────────────────
+let audioReady = false;
+let masterVolume, reverb;
+let droneOsc, subKickSynth, droneFilter;
+let enemySaws = {}; // id -> Tone.Oscillator
+let chargeOsc = null;
+let lockSynth = null;
+let kickLoop = null;
+
+async function initAudio() {
+  if (audioReady) return;
+  await Tone.start();
+  audioReady = true;
+
+  // Master chain
+  masterVolume = new Tone.Volume(-6).toDestination();
+  reverb = new Tone.Reverb({ decay: 2.5, wet: 0.25 }).connect(masterVolume);
+
+  // Drone — D minor pad (D2 sine)
+  droneFilter = new Tone.Filter({ frequency: 800, type: 'lowpass' }).connect(reverb);
+  droneOsc = new Tone.Oscillator({ type: 'sine', frequency: 73.4, volume: -22 }).connect(droneFilter);
+  droneOsc.start();
+
+  // Sub-bass kick every 4 bars at 140 BPM
+  subKickSynth = new Tone.MembraneSynth({
+    pitchDecay: 0.08, octaves: 4,
+    envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.1 },
+    volume: -20
+  }).connect(masterVolume);
+
+  const barDuration = (60 / 140) * 4; // 4 beats per bar
+  kickLoop = new Tone.Loop(time => {
+    if (audioReady && gameState === 'playing') {
+      subKickSynth.triggerAttackRelease('C1', '8n', time);
+    }
+  }, barDuration * 4);
+  kickLoop.start(0);
+  Tone.Transport.bpm.value = 140;
+  Tone.Transport.start();
+
+  lockSynth = new Tone.Synth({
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.01, decay: 0.05, sustain: 1.0, release: 0.1 },
+    volume: -14
+  }).connect(masterVolume);
+}
+
+function hzToNote(hz) {
+  // A3 = 1.0Hz baseline, +1 semitone per 0.1Hz
+  const semitonesFromA3 = (hz - 1.0) / 0.1;
+  const midiA3 = 57; // A3
+  const midi = midiA3 + Math.round(semitonesFromA3);
+  return Tone.Frequency(midi, 'midi').toFrequency();
+}
+
+function addEnemySaw(id, hz) {
+  if (!audioReady) return;
+  if (enemySaws[id]) return;
+  const osc = new Tone.Oscillator({
+    type: 'sawtooth', frequency: hzToNote(hz), volume: -28
+  }).connect(reverb);
+  osc.start();
+  enemySaws[id] = osc;
+}
+
+function updateEnemySaw(id, hz) {
+  if (!audioReady || !enemySaws[id]) return;
+  try {
+    enemySaws[id].frequency.rampTo(hzToNote(hz), 0.1);
+  } catch(e) {}
+}
+
+function removeEnemySaw(id) {
+  if (!audioReady || !enemySaws[id]) return;
+  try {
+    enemySaws[id].stop();
+    enemySaws[id].dispose();
+  } catch(e) {}
+  delete enemySaws[id];
+}
+
+function playChargeSound() {
+  if (!audioReady) return;
+  try {
+    if (chargeOsc) { try { chargeOsc.stop(); chargeOsc.dispose(); } catch(e) {} }
+    chargeOsc = new Tone.Oscillator({ type: 'sine', frequency: 220, volume: -18 });
+    chargeOsc.connect(masterVolume);
+    chargeOsc.start();
+    chargeOsc.frequency.rampTo(playerHz * 200 + 100, 0.3);
+  } catch(e) {}
+}
+
+function stopChargeSound() {
+  if (!audioReady || !chargeOsc) return;
+  try { chargeOsc.stop(); chargeOsc.dispose(); } catch(e) {}
+  chargeOsc = null;
+}
+
+function playLockSound() {
+  if (!audioReady || !lockSynth) return;
+  try { lockSynth.triggerAttackRelease(880, 0.08); } catch(e) {}
+}
+
+function playPerfectStrike(hz) {
+  if (!audioReady) return;
+  try {
+    const freq = hzToNote(hz);
+    const syn = new Tone.Synth({
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.005, decay: 0.0, sustain: 1.0, release: 1.2 },
+      volume: -10
+    }).connect(reverb);
+    syn.triggerAttackRelease(freq, 1.0);
+    setTimeout(() => { try { syn.dispose(); } catch(e) {} }, 2500);
+  } catch(e) {}
+}
+
+function playPartialStrike(hz) {
+  if (!audioReady) return;
+  try {
+    const freq = hzToNote(hz);
+    const crusher = new Tone.BitCrusher({ bits: 4 }).connect(reverb);
+    const syn = new Tone.Synth({
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.005, decay: 0.0, sustain: 1.0, release: 0.5 },
+      volume: -12
+    }).connect(crusher);
+    syn.triggerAttackRelease(freq, 0.3);
+    setTimeout(() => { try { syn.dispose(); crusher.dispose(); } catch(e) {} }, 1200);
+  } catch(e) {}
+}
+
+function playMissSound() {
+  if (!audioReady) return;
+  try {
+    const filt = new Tone.Filter({ frequency: 800, type: 'bandpass', Q: 0.5 }).connect(masterVolume);
+    const noise = new Tone.NoiseSynth({ noise: { type: 'white' }, volume: -6,
+      envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.05 }
+    }).connect(filt);
+    noise.triggerAttackRelease('0.2');
+    setTimeout(() => { try { noise.dispose(); filt.dispose(); } catch(e) {} }, 800);
+  } catch(e) {}
+}
+
+function playChainShatter(baseHz) {
+  if (!audioReady) return;
+  for (let i = 0; i < 6; i++) {
+    const delay = i * 80;
+    setTimeout(() => {
+      try {
+        const freq = hzToNote(baseHz) * Math.pow(2, i/12);
+        const syn = new Tone.Synth({
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.005, decay: 0.0, sustain: 1.0, release: 1.2 },
+          volume: -8
+        }).connect(reverb);
+        syn.triggerAttackRelease(freq, 1.0);
+        setTimeout(() => { try { syn.dispose(); } catch(e) {} }, 2500);
+      } catch(e) {}
+    }, delay);
+  }
+}
+
+// ─── Enemy System ─────────────────────────────────────────────────────────────
+let enemyIdCounter = 0;
+
+// Depth layers: front=1.0x, mid=0.72x, back=0.52x
+const DEPTH_SCALES = [1.0, 0.72, 0.52];
+const DEPTH_Z = [0, -1, -2];
+
+function randomInRange(a, b) { return a + Math.random() * (b - a); }
+
+function generatePolygon(sides, radius) {
+  const pts = [];
+  for (let i = 0; i < sides; i++) {
+    const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+    const r = radius * (0.7 + Math.random() * 0.3);
+    pts.push(new THREE.Vector2(Math.cos(angle) * r, Math.sin(angle) * r));
+  }
+  return pts;
+}
+
+function createEnemyMesh(enemy) {
+  const sides = 5 + Math.floor(Math.random() * 4); // 5-8 sides
+  const baseRadius = enemy.isConductor ? 60 : 40;
+  const pts = generatePolygon(sides, baseRadius);
+  enemy.polygonPoints = pts;
+  enemy.polygonSides = sides;
+
+  const shape = new THREE.Shape(pts);
+  const geo = new THREE.ShapeGeometry(shape);
+  const col = enemy.armoured ? 0xFFB300 : (enemy.isConductor ? 0xE040FB : 0xF5F5DC);
+
+  const mat = new THREE.MeshBasicMaterial({
+    color: col, transparent: true, opacity: 0.85, side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+
+  // Scale for depth layer
+  const sc = DEPTH_SCALES[enemy.depth] * (enemy.isConductor ? 2.0 : 1.0);
+  mesh.scale.set(sc, sc, 1);
+  mesh.position.set(enemy.x, enemy.y, DEPTH_Z[enemy.depth]);
+  scene.add(mesh);
+  enemy.mesh = mesh;
+  enemy.baseScale = sc;
+  enemy.material = mat;
+}
+
+function screenToWorld(sx, sy) {
+  // Convert screen pixel coords to world (orthographic) coords
+  const rect = renderer.domElement.getBoundingClientRect();
+  const W = rect.width;
+  const H = rect.height;
+  const aspect = W / H;
+  const frustumH = 600;
+  const frustumW = frustumH * aspect;
+  const wx = (sx / W - 0.5) * frustumW;
+  const wy = (0.5 - sy / H) * frustumH;
+  return { x: wx, y: wy };
+}
+
+function worldToScreen(wx, wy) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const W = rect.width;
+  const H = rect.height;
+  const aspect = W / H;
+  const frustumH = 600;
+  const frustumW = frustumH * aspect;
+  const sx = (wx / frustumW + 0.5) * W;
+  const sy = (0.5 - wy / frustumH) * H;
+  return { x: sx, y: sy };
+}
+
+function spawnEnemy(waveConfig, forceArmoured = false, isConductor = false) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const W = rect.width;
+  const H = rect.height;
+
+  // Position enemies in right 70% of field, random y
+  const xFrac = randomInRange(0.35, 0.85);
+  const yFrac = randomInRange(0.2, 0.8);
+  const world = screenToWorld(xFrac * W, yFrac * H);
+
+  const depth = Math.floor(Math.random() * 3);
+
+  let baseHz;
+  if (isConductor) {
+    baseHz = 1.6;
+  } else if (waveConfig.baseHzRange[0] === waveConfig.baseHzRange[1]) {
+    baseHz = waveConfig.baseHzRange[0];
+  } else {
+    baseHz = randomInRange(waveConfig.baseHzRange[0], waveConfig.baseHzRange[1]);
+  }
+
+  const id = ++enemyIdCounter;
+  const enemy = {
+    id,
+    baseHz,
+    currentHz: baseHz,
+    spawnTime: performance.now(),
+    elapsedSeconds: 0,
+    driftAmp: waveConfig.driftAmp,
+    driftRate: waveConfig.driftRate,
+    depth,
+    x: world.x,
+    y: world.y,
+    isConductor,
+    armoured: forceArmoured && !isConductor,
+    hp: 1.0,
+    missCount: 0,
+    hitCount: 0,
+    cracked: false,
+    dead: false,
+    immuneTimer: 0,
+    amplitude: 0,
+    prevAmplitudeSign: 0,
+    mesh: null,
+    material: null,
+    polygonPoints: [],
+    polygonSides: 6,
+    baseScale: 1.0,
+    // Conductor-specific
+    lastRingEmitAmplitude: 0,
+  };
+
+  createEnemyMesh(enemy);
+  addEnemySaw(id, baseHz);
+  enemies.push(enemy);
+  return enemy;
+}
+
+function killEnemy(enemy, isChain = false) {
+  if (enemy.dead) return;
+  enemy.dead = true;
+  removeEnemySaw(enemy.id);
+  spawnFragments(enemy, isChain);
+  if (enemy.mesh) {
+    scene.remove(enemy.mesh);
+    enemy.mesh.geometry.dispose();
+    enemy.mesh.material.dispose();
+    enemy.mesh = null;
+  }
+  enemiesKilledThisWave++;
+}
+
+// ─── Fragment System ──────────────────────────────────────────────────────────
+function spawnFragments(enemy, isChain = false) {
+  const numFrags = 8 + Math.floor(Math.random() * 5); // 8-12
+  const sc = enemy.baseScale;
+
+  for (let i = 0; i < numFrags; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = randomInRange(100, 280);
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed;
+    const rotSpeed = randomInRange(1, 4) * (Math.random() < 0.5 ? -1 : 1);
+
+    // Create a small triangle fragment
+    const r = randomInRange(8, 22) * sc;
+    const pts = [];
+    const fragSides = 3;
+    for (let j = 0; j < fragSides; j++) {
+      const a2 = (j / fragSides) * Math.PI * 2 + Math.random() * 0.5;
+      pts.push(new THREE.Vector2(Math.cos(a2) * r, Math.sin(a2) * r));
+    }
+    const shape = new THREE.Shape(pts);
+    const geo = new THREE.ShapeGeometry(shape);
+
+    // Perfect shatter = magenta bloom, otherwise cream
+    const col = isChain || enemy.isConductor ? 0xE040FB : 0xF5F5DC;
+    const mat = new THREE.MeshBasicMaterial({
+      color: col, transparent: true, opacity: 1.0, side: THREE.DoubleSide
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(enemy.x, enemy.y, DEPTH_Z[enemy.depth] + 0.5);
+    mesh.rotation.z = Math.random() * Math.PI * 2;
+    scene.add(mesh);
+
+    fragments.push({
+      mesh, mat, vx, vy, rotSpeed,
+      life: 1.0, // 1.0 → 0.0 over 0.8s
+      isChain
+    });
+  }
+}
+
+function updateFragments(dt) {
+  const speed = gameSpeed;
+  for (let i = fragments.length - 1; i >= 0; i--) {
+    const f = fragments[i];
+    const decay = dt / 0.8 * speed;
+    f.life -= decay;
+    if (f.life <= 0) {
+      scene.remove(f.mesh);
+      f.mesh.geometry.dispose();
+      f.mat.dispose();
+      fragments.splice(i, 1);
+      continue;
+    }
+    f.mesh.position.x += f.vx * dt * speed;
+    f.mesh.position.y += f.vy * dt * speed;
+    f.mesh.rotation.z += f.rotSpeed * dt * speed;
+    f.mat.opacity = Math.max(0, f.life);
+  }
+}
+
+// ─── Conductor Ring System ────────────────────────────────────────────────────
+let conductorRingMeshes = []; // { mesh, mat, radius, spawnX, spawnY, speed }
+
+function emitConductorRing(conductor) {
+  const ring = {
+    spawnX: conductor.x,
+    spawnY: conductor.y,
+    radius: 0,
+    speed: 400, // px/s in screen space — convert to world
+    active: true,
+    overlappedEnemies: new Set()
+  };
+  conductorRings.push(ring);
+}
+
+function updateConductorRings(dt) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const W = rect.width;
+  // Convert 400px/s screen to world units
+  const aspect = W / (rect.height || 600);
+  const frustumW = 600 * aspect;
+  const worldPerPixel = frustumW / W;
+  const ringSpeedWorld = 400 * worldPerPixel;
+
+  for (let i = conductorRings.length - 1; i >= 0; i--) {
+    const ring = conductorRings[i];
+    ring.radius += ringSpeedWorld * dt;
+
+    // Check overlap with enemies
+    for (const enemy of enemies) {
+      if (enemy.dead || enemy.isConductor) continue;
+      const dx = enemy.x - ring.spawnX;
+      const dy = enemy.y - ring.spawnY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      // Enemy is "overlapped" if ring is passing through it (ring radius ≈ dist)
+      const enemyRadius = 40 * enemy.baseScale;
+      if (Math.abs(dist - ring.radius) < enemyRadius * 1.5) {
+        ring.overlappedEnemies.add(enemy.id);
+      }
+    }
+
+    // Remove ring when it's too far (beyond screen diagonal)
+    const maxDist = Math.sqrt((frustumW/2)*(frustumW/2) + 300*300) * 2;
+    if (ring.radius > maxDist) {
+      conductorRings.splice(i, 1);
+    }
+  }
+}
+
+// ─── Wave System ──────────────────────────────────────────────────────────────
+function startWave(waveIndex) {
+  currentWave = waveIndex;
+  const config = WAVES[waveIndex];
+  enemiesSpawnedThisWave = 0;
+  enemiesKilledThisWave = 0;
+  waveScore = 0;
+  spawnQueue = [];
+  conductorRings = [];
+
+  // Build spawn order
+  if (config.hasConductor) {
+    // Spawn conductor immediately
+    spawnQueue.push({ type: 'conductor', delay: 0 });
+    // Then 5 standard enemies
+    for (let i = 0; i < 5; i++) {
+      spawnQueue.push({ type: 'standard', delay: 2000 + i * 1500 });
+    }
+  } else {
+    // Determine armoured slots
+    const totalEnemies = config.enemyCount;
+    const armouredSlots = new Set();
+    while (armouredSlots.size < config.armoured) {
+      armouredSlots.add(Math.floor(Math.random() * totalEnemies));
+    }
+    // Alternate frequencies for wave 2 (0.8 / 2.4)
+    for (let i = 0; i < totalEnemies; i++) {
+      spawnQueue.push({
+        type: 'standard',
+        armoured: armouredSlots.has(i),
+        forcedHz: waveIndex === 1 ? (i % 2 === 0 ? 0.8 : 2.4) : null,
+        delay: 0
+      });
+    }
+  }
+
+  lastSpawnTime = performance.now();
+  gameState = 'playing';
+
+  // Update near-win state
+  nearWin = (waveIndex === WAVES.length - 1);
+  if (nearWin && audioReady) {
+    Tone.Transport.bpm.rampTo(156, (60/140)*8*4); // 8 bars
+  }
+}
+
+function checkSpawns() {
+  if (spawnQueue.length === 0) return;
+  if (gameState !== 'playing') return;
+  const config = WAVES[currentWave];
+
+  const liveEnemies = enemies.filter(e => !e.dead);
+  if (liveEnemies.length >= config.maxSimultaneous) return;
+
+  const now = performance.now();
+  // Delay between spawns
+  const spawnDelay = enemiesSpawnedThisWave === 0 ? 0 : 1500;
+  if (now - lastSpawnTime < spawnDelay && enemiesSpawnedThisWave > 0) return;
+
+  const next = spawnQueue.shift();
+  if (!next) return;
+
+  if (next.type === 'conductor') {
+    // Position conductor at center
+    const rect = renderer.domElement.getBoundingClientRect();
+    const world = screenToWorld(rect.width * 0.55, rect.height * 0.5);
+    const config2 = WAVES[currentWave];
+    const id = ++enemyIdCounter;
+    const enemy = {
+      id, baseHz: 1.6, currentHz: 1.6,
+      spawnTime: performance.now(), elapsedSeconds: 0,
+      driftAmp: config2.driftAmp, driftRate: config2.driftRate,
+      depth: 1, x: world.x, y: world.y,
+      isConductor: true, armoured: false,
+      hp: 3.0, // Conductor is tougher
+      missCount: 0, hitCount: 0, cracked: false, dead: false,
+      immuneTimer: 0, amplitude: 0, prevAmplitudeSign: 0,
+      mesh: null, material: null,
+      polygonPoints: [], polygonSides: 8, baseScale: 1.0,
+      lastRingEmitAmplitude: 0.5,
+    };
+    // Conductor at center, depth 1
+    createEnemyMesh(enemy);
+    addEnemySaw(id, 1.6);
+    enemies.push(enemy);
+    enemiesSpawnedThisWave++;
+    lastSpawnTime = now;
+  } else {
+    // Standard/armoured
+    const overrides = {};
+    if (next.forcedHz !== null && next.forcedHz !== undefined) {
+      overrides.forcedHz = next.forcedHz;
+    }
+    const config2 = WAVES[currentWave];
+    const id = ++enemyIdCounter;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const W = rect.width; const H = rect.height;
+    const xFrac = randomInRange(0.35, 0.88);
+    const yFrac = randomInRange(0.15, 0.85);
+    const world = screenToWorld(xFrac * W, yFrac * H);
+    const depth = Math.floor(Math.random() * 3);
+
+    let baseHz = overrides.forcedHz !== undefined ? overrides.forcedHz :
+      randomInRange(config2.baseHzRange[0], config2.baseHzRange[1]);
+
+    const enemy = {
+      id, baseHz, currentHz: baseHz,
+      spawnTime: performance.now(), elapsedSeconds: 0,
+      driftAmp: config2.driftAmp, driftRate: config2.driftRate,
+      depth, x: world.x, y: world.y,
+      isConductor: false, armoured: !!next.armoured,
+      hp: next.armoured ? 2.0 : 1.0,
+      missCount: 0, hitCount: 0, cracked: false, dead: false,
+      immuneTimer: 0, amplitude: 0, prevAmplitudeSign: 0,
+      mesh: null, material: null,
+      polygonPoints: [], polygonSides: 5 + Math.floor(Math.random() * 4), baseScale: 1.0,
+      lastRingEmitAmplitude: 0.5,
+    };
+    createEnemyMesh(enemy);
+    addEnemySaw(id, baseHz);
+    enemies.push(enemy);
+    enemiesSpawnedThisWave++;
+    lastSpawnTime = now;
+  }
+}
+
+function checkWaveComplete() {
+  if (!hasEverActed) return;
+  if (gameState !== 'playing') return;
+
+  const config = WAVES[currentWave];
+  const allSpawned = spawnQueue.length === 0 && enemiesSpawnedThisWave >= config.enemyCount;
+  const allDead = enemies.filter(e => !e.dead).length === 0;
+
+  if (allSpawned && allDead) {
+    // Wave complete
+    if (currentWave >= WAVES.length - 1) {
+      triggerWin();
+    } else {
+      showPostWave();
+    }
+  }
+}
+
+// ─── Strike System ────────────────────────────────────────────────────────────
+function fireStrike() {
+  if (!hasEverActed) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const releaseTime = performance.now();
+
+  // Find closest non-dead enemy
+  const liveEnemies = enemies.filter(e => !e.dead);
+  if (liveEnemies.length === 0) return;
+
+  // Target: find enemy whose current Hz is closest to playerHz
+  let target = null;
+  let bestDiff = Infinity;
+  for (const e of liveEnemies) {
+    const diff = Math.abs(e.currentHz - playerHz);
+    if (diff < bestDiff) { bestDiff = diff; target = e; }
+  }
+  if (!target) return;
+
+  projectiles.push({
+    releaseTime,
+    landingTime: releaseTime + 200,
+    playerHz,
+    targetId: target.id,
+    x: screenToWorld(rect.width * 0.08, rect.height * 0.5).x,
+    targetX: target.x,
+    targetY: target.y,
+    landed: false
+  });
+}
+
+function updateProjectiles(now) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const proj = projectiles[i];
+    if (proj.landed) { projectiles.splice(i, 1); continue; }
+
+    if (now >= proj.landingTime) {
+      proj.landed = true;
+      landStrike(proj, now);
+      projectiles.splice(i, 1);
+    }
+  }
+}
+
+function landStrike(proj, now) {
+  const target = enemies.find(e => e.id === proj.targetId);
+  if (!target || target.dead) return;
+
+  // Check immune
+  if (target.immuneTimer > 0) return;
+
+  // Frequency match
+  const freqDiff = Math.abs(proj.playerHz - target.currentHz) / target.currentHz;
+  let freqMatch;
+  if (freqDiff <= 0.03) freqMatch = 1.0;
+  else if (freqDiff <= 0.15) freqMatch = 1.0 - ((freqDiff - 0.03) / 0.12) * 0.3; // 0.7 - 1.0
+  else freqMatch = Math.max(0, 1.0 - freqDiff * 2);
+
+  // Timing match — sample amplitude at landing
+  const landingAmplitude = getEnemyAmplitudeAt(target, now);
+  const timingMatch = Math.max(0, 1.0 - (Math.abs(landingAmplitude - 1.0) / 0.5));
+
+  const combined = freqMatch * timingMatch;
+
+  // Check if conductor + chain
+  let isChainShatter = false;
+  let chainTargets = [];
+  if (target.isConductor && combined >= 0.95) {
+    // Count ring overlaps
+    let overlapCount = 0;
+    for (const ring of conductorRings) {
+      const overlapped = [...ring.overlappedEnemies].filter(id => {
+        const e = enemies.find(e2 => e2.id === id);
+        return e && !e.dead;
+      });
+      if (overlapped.length >= 4) {
+        overlapCount = overlapped.length;
+        chainTargets = overlapped.map(id => enemies.find(e => e.id === id)).filter(Boolean);
+        isChainShatter = true;
+        break;
+      }
+    }
+  }
+
+  if (combined >= 0.70) {
+    // Hit
+    let score = Math.round(100 * combined);
+    let isPerfect = combined >= 0.95;
+
+    if (isPerfect) {
+      score *= 3;
+      multiplierStack = Math.min(6, multiplierStack + 1);
+      score *= multiplierStack;
+      playPerfectStrike(target.currentHz);
+
+      // Visual: perfect shatter flash
+      spawnHitEffect(target, true);
+
+      if (isChainShatter) {
+        // Chain shatter all overlapped enemies
+        playChainShatter(target.currentHz);
+        gameSpeed = 0.15;
+        gameSpeedLerpTimer = 1500;
+        for (const et of chainTargets) {
+          waveScore += Math.round(100 * 3 * multiplierStack);
+          totalScore += Math.round(100 * 3 * multiplierStack);
+          killEnemy(et, true);
+        }
+      }
+
+      killEnemy(target, true);
+
+    } else {
+      // Partial hit
+      multiplierStack = 1;
+      if (target.armoured) {
+        if (!target.cracked) {
+          target.cracked = true;
+          // Visual crack
+          if (target.material) {
+            target.material.color.setHex(0xFFAA00);
+          }
+          // Don't kill yet
+          target.immuneTimer = 2.0;
+          playPartialStrike(target.currentHz);
+          score *= multiplierStack;
+        } else {
+          // Second hit kills armoured
+          score *= multiplierStack;
+          playPartialStrike(target.currentHz);
+          killEnemy(target, false);
+        }
+      } else {
+        // One hit sufficient if ≥70%
+        target.hp -= (freqMatch * timingMatch);
+        if (target.hp <= 0) {
+          playPartialStrike(target.currentHz);
+          killEnemy(target, false);
+        } else {
+          target.immuneTimer = 2.0;
+          playPartialStrike(target.currentHz);
+        }
+        score *= multiplierStack;
+      }
+    }
+
+    waveScore += score;
+    totalScore += score;
+    showScorePop(target.x, target.y, score, isPerfect);
+
+  } else {
+    // Miss
+    multiplierStack = 1;
+    target.missCount++;
+    target.immuneTimer = 2.0;
+    playMissSound();
+    totalScore = Math.max(0, totalScore - 50);
+    waveScore = Math.max(0, waveScore - 50);
+
+    // Flash immune
+    if (target.material) {
+      const origColor = target.armoured ? 0xFFB300 : (target.isConductor ? 0xE040FB : 0xF5F5DC);
+      target.material.color.setHex(0xFF2020);
+      setTimeout(() => {
+        if (target.material && !target.dead) target.material.color.setHex(origColor);
+      }, 300);
+    }
+
+    if (target.missCount >= 3) {
+      // Enemy escapes
+      removeEnemySaw(target.id);
+      if (target.mesh) {
+        scene.remove(target.mesh);
+        target.mesh.geometry.dispose();
+        target.mesh.material.dispose();
+        target.mesh = null;
+      }
+      target.dead = true;
+      enemiesKilledThisWave++;
+      health--;
+      if (health <= 0 && hasEverActed) {
+        triggerGameOver();
+      }
+    }
+  }
+}
+
+function getEnemyAmplitudeAt(enemy, timestamp) {
+  const elapsed = (timestamp - enemy.spawnTime) / 1000;
+  const ampFreq = 1 / (0.5 / enemy.currentHz); // = 2 * currentHz
+  return 0.5 + 0.5 * Math.sin(2 * Math.PI * ampFreq * elapsed);
+}
+
+// Score pop display (on hud canvas)
+let scorePops = [];
+function showScorePop(wx, wy, score, isPerfect) {
+  const screen = worldToScreen(wx, wy);
+  scorePops.push({
+    x: screen.x, y: screen.y - 30,
+    score: (isPerfect ? '×' + multiplierStack + ' ' : '') + '+' + score,
+    life: 1.0,
+    color: isPerfect ? COL_PRIMARY : COL_ACCENT
+  });
+}
+
+// ─── Enemy Update ─────────────────────────────────────────────────────────────
+function updateEnemies(dt, now) {
+  for (const enemy of enemies) {
+    if (enemy.dead) continue;
+
+    enemy.elapsedSeconds += dt * gameSpeed;
+    enemy.immuneTimer = Math.max(0, enemy.immuneTimer - dt);
+
+    // Update drift
+    if (enemy.driftAmp > 0) {
+      enemy.currentHz = enemy.baseHz + enemy.driftAmp * Math.sin(2 * Math.PI * enemy.driftRate * enemy.elapsedSeconds);
+    } else {
+      enemy.currentHz = enemy.baseHz;
+    }
+    enemy.currentHz = Math.max(0.5, Math.min(4.0, enemy.currentHz));
+
+    // Update saw
+    updateEnemySaw(enemy.id, enemy.currentHz);
+
+    // Amplitude
+    const ampFreq = 2 * enemy.currentHz; // = 1/(0.5/enemyHz)
+    const newAmp = 0.5 + 0.5 * Math.sin(2 * Math.PI * ampFreq * enemy.elapsedSeconds);
+    const prevAmp = enemy.amplitude;
+    enemy.amplitude = newAmp;
+
+    // Conductor: emit ring when amplitude crosses from <0.5 to rising
+    if (enemy.isConductor) {
+      if (prevAmp < 0.5 && newAmp >= 0.5 && enemy.elapsedSeconds > 0.3) {
+        // Check if this is rising phase (derivative positive)
+        const nextAmp = 0.5 + 0.5 * Math.sin(2 * Math.PI * ampFreq * (enemy.elapsedSeconds + 0.01));
+        if (nextAmp > newAmp) {
+          emitConductorRing(enemy);
+        }
+      }
+    }
+
+    // Update mesh brightness based on amplitude
+    if (enemy.mesh && enemy.material) {
+      // Min: #2A1040 blend, Peak: #F5C0F0 blend
+      const t = (enemy.amplitude - 0.5) / 0.5; // 0..1 (min..peak)
+      if (enemy.isConductor) {
+        const r = 0.88 + t * 0.12;
+        const g = 0.25 + t * 0.0;
+        const b = 0.98 + t * 0.02;
+        enemy.material.color.setRGB(r, g, b);
+      } else if (enemy.armoured) {
+        const r = 1.0;
+        const g = 0.7 + t * 0.0;
+        const b = 0.0;
+        enemy.material.color.setRGB(r, g, b);
+      } else {
+        // Blend #2A1040 (min) → #F5C0F0 (peak)
+        const r = (0x2A/255) + t * ((0xF5/255) - (0x2A/255));
+        const g = (0x10/255) + t * ((0xC0/255) - (0x10/255));
+        const b = (0x40/255) + t * ((0xF0/255) - (0x40/255));
+        enemy.material.color.setRGB(r, g, b);
+      }
+      // Immune flash
+      if (enemy.immuneTimer > 0 && enemy.immuneTimer < 2.0) {
+        const flash = Math.sin(enemy.immuneTimer * 20) * 0.5 + 0.5;
+        if (!enemy.isConductor && !enemy.armoured) {
+          enemy.material.color.setRGB(flash * 0.8, 0, flash * 0.5);
+        }
+      }
+    }
+
+    // Conductor ring: sync waveforms
+    for (const ring of conductorRings) {
+      if (ring.overlappedEnemies.has(enemy.id)) {
+        // Temporarily sync Hz for visual only (not scoring)
+        // We'll handle this in the draw pass
+        enemy.syncedHz = WAVES[currentWave]?.hasConductor ? 1.6 : enemy.currentHz;
+      } else {
+        enemy.syncedHz = null;
+      }
+    }
+  }
+
+  // Remove dead enemies from list after a delay
+  const toRemove = enemies.filter(e => e.dead && !e.mesh);
+  // Already removed from scene, just clean up
+}
+
+// ─── Slow-motion ──────────────────────────────────────────────────────────────
+function updateGameSpeed(dt) {
+  if (gameSpeedLerpTimer > 0) {
+    gameSpeedLerpTimer -= dt * 1000;
+    if (gameSpeedLerpTimer <= 0) {
+      // Start lerping back
+      gameSpeedLerpTimer = -300; // negative = lerping back
+    }
+  } else if (gameSpeedLerpTimer < 0) {
+    gameSpeedLerpTimer += dt * 1000;
+    const t = 1.0 - Math.min(1.0, -gameSpeedLerpTimer / 300);
+    gameSpeed = 0.15 + (1.0 - 0.15) * (1.0 - t);
+    if (gameSpeedLerpTimer >= 0) {
+      gameSpeed = 1.0;
+      gameSpeedLerpTimer = 0;
+    }
+  }
+}
+
+// ─── HUD Rendering ────────────────────────────────────────────────────────────
+let hitEffects = []; // { x, y, life, isPerfect }
+function spawnHitEffect(enemy, isPerfect) {
+  const screen = worldToScreen(enemy.x, enemy.y);
+  hitEffects.push({ x: screen.x, y: screen.y, life: 1.0, isPerfect });
+}
+
+function drawHUD(now) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const W = rect.width;
+  const H = rect.height;
+  hud.clearRect(0, 0, W, H);
+
+  // Vignette
+  const vig = hud.createRadialGradient(W/2, H/2, H * 0.65 * 0.65, W/2, H/2, Math.sqrt(W*W+H*H)/2);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.45)');
+  hud.fillStyle = vig;
+  hud.fillStyle = vig;
+  hud.fillRect(0, 0, W, H);
+
+  // Player oscilloscope ring
+  const ringX = W * 0.08;
+  const ringY = H * 0.5;
+  const ringR = 60;
+
+  // Health rings
+  for (let i = 0; i < 3; i++) {
+    const r = ringR + 20 + i * 10;
+    hud.beginPath();
+    hud.arc(ringX, ringY, r, 0, Math.PI * 2);
+    hud.strokeStyle = i < health ? COL_AMBER : 'rgba(255,179,0,0.2)';
+    hud.lineWidth = 2;
+    hud.stroke();
+  }
+
+  // Lock flash
+  const isLocked = (gameState === 'playing' && isCharging && enemies.some(e => !e.dead && Math.abs(e.currentHz - playerHz) / e.currentHz <= 0.05));
+  if (isLocked && !wasLocked) { lockFlashTimer = 80; playLockSound(); }
+  wasLocked = isLocked;
+  if (lockFlashTimer > 0) { lockFlashTimer -= 16; }
+
+  // Main ring
+  hud.beginPath();
+  hud.arc(ringX, ringY, ringR, 0, Math.PI * 2);
+  hud.strokeStyle = lockFlashTimer > 0 ? COL_ACCENT : COL_PRIMARY;
+  hud.lineWidth = 2;
+  hud.shadowColor = lockFlashTimer > 0 ? COL_ACCENT : COL_PRIMARY;
+  hud.shadowBlur = 18;
+  hud.stroke();
+  hud.shadowBlur = 0;
+
+  // Waveform on ring circumference (when charging)
+  if (isCharging || gameState === 'playing') {
+    const cycles = playerHz * 4; // 4 cycles at 1Hz
+    const waveAmp = 8;
+    hud.beginPath();
+    const steps = 128;
+    for (let i = 0; i <= steps; i++) {
+      const frac = i / steps;
+      const angle = frac * Math.PI * 2 - Math.PI / 2;
+      const wave = Math.sin(frac * cycles * Math.PI * 2) * waveAmp;
+      const r2 = ringR + wave;
+      const px = ringX + Math.cos(angle) * r2;
+      const py = ringY + Math.sin(angle) * r2;
+      if (i === 0) hud.moveTo(px, py);
+      else hud.lineTo(px, py);
+    }
+    hud.closePath();
+    hud.strokeStyle = lockFlashTimer > 0 ? COL_ACCENT : COL_PRIMARY;
+    hud.lineWidth = 1.5;
+    hud.shadowColor = COL_PRIMARY;
+    hud.shadowBlur = 12;
+    hud.stroke();
+    hud.shadowBlur = 0;
+  }
+
+  // Multiplier stack nodes
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    const nr = ringR + 16;
+    const nx = ringX + Math.cos(angle) * nr;
+    const ny = ringY + Math.sin(angle) * nr;
+    hud.beginPath();
+    hud.arc(nx, ny, 3, 0, Math.PI * 2);
+    if (i < multiplierStack) {
+      hud.fillStyle = multiplierStack >= 6 ? COL_PRIMARY : COL_ACCENT;
+      hud.shadowColor = multiplierStack >= 6 ? COL_PRIMARY : COL_ACCENT;
+      hud.shadowBlur = 8;
+    } else {
+      hud.fillStyle = 'rgba(0,255,179,0.15)';
+      hud.shadowBlur = 0;
+    }
+    hud.fill();
+    hud.shadowBlur = 0;
+  }
+
+  // Draw enemy waveforms on hud canvas (cream lines)
+  for (const enemy of enemies) {
+    if (enemy.dead) continue;
+    const eScreen = worldToScreen(enemy.x, enemy.y);
+    drawEnemyWaveform(enemy, eScreen.x, eScreen.y, now);
+  }
+
+  // Draw conductor rings
+  for (const ring of conductorRings) {
+    const sc = worldToScreen(ring.spawnX, ring.spawnY);
+    const screenRadius = worldRadiusToScreen(ring.radius);
+    hud.beginPath();
+    hud.arc(sc.x, sc.y, screenRadius, 0, Math.PI * 2);
+    hud.strokeStyle = 'rgba(224,64,251,0.6)';
+    hud.lineWidth = 2;
+    hud.shadowColor = COL_PRIMARY;
+    hud.shadowBlur = 20;
+    hud.stroke();
+    hud.shadowBlur = 0;
+  }
+
+  // Draw projectiles
+  for (const proj of projectiles) {
+    const now2 = performance.now();
+    const t = Math.min(1.0, (now2 - proj.releaseTime) / (proj.landingTime - proj.releaseTime));
+    const startX = W * 0.08;
+    const tgt = enemies.find(e => e.id === proj.targetId);
+    if (!tgt) continue;
+    const tgtS = worldToScreen(tgt.x, tgt.y);
+    const px = startX + (tgtS.x - startX) * t;
+    const py = H * 0.5 + (tgtS.y - H * 0.5) * t;
+    hud.beginPath();
+    hud.arc(px, py, 4, 0, Math.PI * 2);
+    hud.fillStyle = COL_PRIMARY;
+    hud.shadowColor = COL_PRIMARY;
+    hud.shadowBlur = 16;
+    hud.fill();
+    hud.shadowBlur = 0;
+  }
+
+  // Hit effects
+  for (let i = hitEffects.length - 1; i >= 0; i--) {
+    const ef = hitEffects[i];
+    ef.life -= 0.03;
+    if (ef.life <= 0) { hitEffects.splice(i, 1); continue; }
+    const r = (1 - ef.life) * 60;
+    hud.beginPath();
+    hud.arc(ef.x, ef.y, r, 0, Math.PI * 2);
+    hud.strokeStyle = ef.isPerfect ? `rgba(224,64,251,${ef.life})` : `rgba(0,255,179,${ef.life * 0.5})`;
+    hud.lineWidth = 2;
+    hud.stroke();
+  }
+
+  // Score pops
+  for (let i = scorePops.length - 1; i >= 0; i--) {
+    const p = scorePops[i];
+    p.life -= 0.015;
+    p.y -= 1;
+    if (p.life <= 0) { scorePops.splice(i, 1); continue; }
+    hud.font = '14px "Courier New", monospace';
+    hud.fillStyle = p.color;
+    hud.globalAlpha = p.life;
+    hud.textAlign = 'center';
+    hud.fillText(p.score, p.x, p.y);
+    hud.globalAlpha = 1.0;
+  }
+
+  // Wave label (top center)
+  if (gameState === 'playing') {
+    hud.font = '11px "Courier New", monospace';
+    hud.fillStyle = 'rgba(245,245,220,0.35)';
+    hud.textAlign = 'center';
+    hud.fillText(`WAVE ${currentWave + 1} — ${WAVES[currentWave]?.name || ''}`, W / 2, 24);
+  }
+}
+
+function worldRadiusToScreen(worldR) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const W = rect.width;
+  const aspect = W / (rect.height || 600);
+  const frustumW = 600 * aspect;
+  return worldR / frustumW * W;
+}
+
+function drawEnemyWaveform(enemy, sx, sy, now) {
+  const depth = DEPTH_SCALES[enemy.depth];
+  const waveLen = 120 * depth; // 120px each side, scaled by depth
+  const hz = enemy.syncedHz !== null && enemy.syncedHz !== undefined ? enemy.syncedHz : enemy.currentHz;
+  const waveAmp = 10 * depth;
+  const cycles = hz * 2; // spatial cycles in 120px
+  const t = now / 1000;
+
+  hud.beginPath();
+  const steps = 80;
+  for (let i = 0; i <= steps; i++) {
+    const frac = i / steps;
+    const dx = (frac - 0.5) * waveLen * 2;
+    const phase = frac * cycles * Math.PI * 2;
+    const dy = Math.sin(phase) * waveAmp * enemy.amplitude;
+    if (i === 0) hud.moveTo(sx + dx, sy + dy);
+    else hud.lineTo(sx + dx, sy + dy);
+  }
+  hud.strokeStyle = enemy.syncedHz ? 'rgba(224,64,251,0.8)' : '#F5F5DC';
+  hud.lineWidth = 1.5 * depth;
+  hud.shadowColor = enemy.syncedHz ? COL_PRIMARY : COL_SECONDARY;
+  hud.shadowBlur = enemy.syncedHz ? 12 : 4;
+  hud.stroke();
+  hud.shadowBlur = 0;
+
+  // Crack lines on armoured enemies
+  if (enemy.cracked && !enemy.dead) {
+    const eScreen = worldToScreen(enemy.x, enemy.y);
+    hud.beginPath();
+    hud.moveTo(sx - 15 * depth, sy - 20 * depth);
+    hud.lineTo(sx + 5 * depth, sy + 25 * depth);
+    hud.strokeStyle = 'rgba(255,255,255,0.6)';
+    hud.lineWidth = 1;
+    hud.stroke();
+    hud.beginPath();
+    hud.moveTo(sx + 10 * depth, sy - 15 * depth);
+    hud.lineTo(sx - 8 * depth, sy + 10 * depth);
+    hud.stroke();
+  }
+}
+
+// ─── State Transitions ────────────────────────────────────────────────────────
+function showPostWave() {
+  gameState = 'postwave';
+  stopChargeSound();
+
+  const hs = parseInt(localStorage.getItem(SCORE_KEY) || '0');
+  const newHs = totalScore > hs;
+  if (newHs) localStorage.setItem(SCORE_KEY, totalScore.toString());
+
+  document.getElementById('postWaveTitle').textContent = `WAVE ${currentWave + 1} COMPLETE`;
+  document.getElementById('postWaveScore').textContent = waveScore.toString();
+  document.getElementById('postWaveHS').textContent = newHs ? '★ NEW HIGH SCORE' : (hs > 0 ? `BEST: ${hs}` : '');
+  document.getElementById('postWave').classList.add('visible');
+}
+
+function continueGame() {
+  document.getElementById('postWave').classList.remove('visible');
+  // Clear dead enemies
+  enemies = enemies.filter(e => !e.dead);
+  conductorRings = [];
+  setTimeout(() => {
+    startWave(currentWave + 1);
+  }, 300);
+}
+
+function triggerGameOver() {
+  gameState = 'gameover';
+  stopChargeSound();
+  // Decay all audio
+  if (audioReady) {
+    try { Tone.Transport.stop(); } catch(e) {}
+    Object.keys(enemySaws).forEach(id => removeEnemySaw(Number(id)));
+  }
+
+  const hs = parseInt(localStorage.getItem(SCORE_KEY) || '0');
+  const newHs = totalScore > hs;
+  if (newHs) localStorage.setItem(SCORE_KEY, totalScore.toString());
+
+  document.getElementById('goScore').textContent = `SCORE: ${totalScore}`;
+  document.getElementById('goHS').textContent = newHs ? '★ NEW HIGH SCORE' : `BEST: ${Math.max(hs, totalScore)}`;
+  document.getElementById('gameOver').classList.add('visible');
+}
+
+function triggerWin() {
+  gameState = 'win';
+  stopChargeSound();
+
+  const hs = parseInt(localStorage.getItem(SCORE_KEY) || '0');
+  const newHs = totalScore > hs;
+  if (newHs) localStorage.setItem(SCORE_KEY, totalScore.toString());
+
+  document.getElementById('winScore').textContent = totalScore.toString();
+  document.getElementById('winHS').textContent = newHs ? '★ NEW HIGH SCORE' : `BEST: ${Math.max(hs, totalScore)}`;
+  document.getElementById('winScreen').classList.add('visible');
+}
+
+function resetGame() {
+  // Clear scene
+  for (const enemy of enemies) {
+    if (enemy.mesh) { scene.remove(enemy.mesh); }
+    removeEnemySaw(enemy.id);
+  }
+  enemies = [];
+  fragments = [];
+  projectiles = [];
+  conductorRings = [];
+  conductorRingMeshes = [];
+  hitEffects = [];
+  scorePops = [];
+  spawnQueue = [];
+
+  totalScore = 0;
+  waveScore = 0;
+  health = 3;
+  multiplierStack = 1;
+  gameSpeed = 1.0;
+  gameSpeedLerpTimer = 0;
+  hasEverActed = false;
+  isCharging = false;
+  nearWin = false;
+  enemyIdCounter = 0;
+  enemiesSpawnedThisWave = 0;
+  enemiesKilledThisWave = 0;
+
+  if (audioReady) {
+    try {
+      Tone.Transport.bpm.value = 140;
+      Tone.Transport.start();
+    } catch(e) {}
+  }
+
+  startWave(0);
+}
+
+// ─── Input Handling ───────────────────────────────────────────────────────────
+function getPointerHz(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const W = rect.width;
+  const px = event.clientX - rect.left;
+  return 0.5 + Math.max(0, Math.min(1, px / W)) * 3.5;
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (gameState !== 'playing') return;
+  e.preventDefault();
+  hasEverActed = true;
+  isCharging = true;
+  chargeStartTime = performance.now();
+  pointerX = e.clientX;
+  playerHz = getPointerHz(e);
+  playChargeSound();
+});
+
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!isCharging || gameState !== 'playing') return;
+  e.preventDefault();
+  pointerX = e.clientX;
+  playerHz = getPointerHz(e);
+  if (chargeOsc && audioReady) {
+    try { chargeOsc.frequency.rampTo(playerHz * 200 + 100, 0.05); } catch(e2) {}
+  }
+});
+
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!isCharging || gameState !== 'playing') return;
+  e.preventDefault();
+  isCharging = false;
+  stopChargeSound();
+  if (hasEverActed) fireStrike();
+});
+
+renderer.domElement.addEventListener('pointercancel', (e) => {
+  isCharging = false;
+  stopChargeSound();
+});
+
+// UI Button handlers
+document.getElementById('postWaveContinue').addEventListener('pointerdown', continueGame);
+document.getElementById('goBtn').addEventListener('pointerdown', () => {
+  document.getElementById('gameOver').classList.remove('visible');
+  resetGame();
+});
+document.getElementById('winBtn').addEventListener('pointerdown', () => {
+  document.getElementById('winScreen').classList.remove('visible');
+  resetGame();
+});
+
+// ─── Start Screen ─────────────────────────────────────────────────────────────
+const startCanvasEl = document.getElementById('startCanvas');
+// Create a proper canvas element for 2D context
+const startCanvas = document.createElement('canvas');
+if (startCanvasEl && startCanvasEl.parentNode) {
+  startCanvasEl.parentNode.replaceChild(startCanvas, startCanvasEl);
+}
+startCanvas.id = 'startCanvas';
+startCanvas.style.position = 'absolute';
+startCanvas.style.top = '0';
+startCanvas.style.left = '0';
+startCanvas.style.width = '100%';
+startCanvas.style.height = '100%';
+const startCtx = startCanvas.getContext('2d');
+
+function resizeStartCanvas() {
+  startCanvas.width = window.innerWidth;
+  startCanvas.height = window.innerHeight;
+}
+resizeStartCanvas();
+window.addEventListener('resize', resizeStartCanvas);
+
+// Position crystal silhouette
+function updateCrystalPos() {
+  const svg = document.getElementById('startSVG');
+  const W = svg.clientWidth || window.innerWidth;
+  const H = svg.clientHeight || window.innerHeight;
+  const crystalGroup = document.getElementById('crystalGroup');
+  if (crystalGroup) {
+    crystalGroup.setAttribute('transform', `translate(${W/2}, ${H * 0.28})`);
+  }
+}
+updateCrystalPos();
+window.addEventListener('resize', updateCrystalPos);
+
+// Crystal fragments for start screen
+const startFragments = [];
+function initStartFragments() {
+  const count = 12 + Math.floor(Math.random() * 7); // 12-18
+  for (let i = 0; i < count; i++) {
+    const sides = 5 + Math.floor(Math.random() * 4);
+    const pts = [];
+    const radius = 20 + Math.random() * 25;
+    for (let j = 0; j < sides; j++) {
+      const a = (j / sides) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const r = radius * (0.6 + Math.random() * 0.4);
+      pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+    }
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    startFragments.push({
+      x: Math.random() * W, y: Math.random() * H,
+      pts,
+      vx: (Math.random() - 0.5) * (8 + Math.random() * 14),
+      vy: (Math.random() - 0.5) * (8 + Math.random() * 14),
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.3,
+      pulseHz: 0.4 + Math.random() * 1.4,
+      pulsePhase: Math.random() * Math.PI * 2,
+      sides
+    });
+  }
+}
+initStartFragments();
+
+let startAnimTime = 0;
+function drawStartScreen(t) {
+  const W = startCanvas.width;
+  const H = startCanvas.height;
+  startCtx.clearRect(0, 0, W, H);
+
+  // Background sweep line
+  const sweepY = H * 0.5;
+  startCtx.beginPath();
+  startCtx.moveTo(0, sweepY);
+  for (let x = 0; x <= W; x += 2) {
+    const y = sweepY + Math.sin((x / W) * 4 * Math.PI + t * 0.3) * 20;
+    startCtx.lineTo(x, y);
+  }
+  startCtx.strokeStyle = 'rgba(0,255,179,0.08)';
+  startCtx.lineWidth = 1;
+  startCtx.stroke();
+
+  // Crystal fragments
+  for (const frag of startFragments) {
+    // Move
+    const speed = 8 + Math.sqrt(frag.vx*frag.vx + frag.vy*frag.vy);
+    frag.x += frag.vx * 0.016;
+    frag.y += frag.vy * 0.016;
+    frag.rot += frag.rotSpeed * 0.016;
+
+    // Wrap
+    if (frag.x < -80) frag.x += W + 160;
+    if (frag.x > W + 80) frag.x -= W + 160;
+    if (frag.y < -80) frag.y += H + 160;
+    if (frag.y > H + 80) frag.y -= H + 160;
+
+    const opacity = 0.2 + 0.25 * Math.sin(2 * Math.PI * frag.pulseHz * t + frag.pulsePhase);
+
+    startCtx.save();
+    startCtx.translate(frag.x, frag.y);
+    startCtx.rotate(frag.rot);
+
+    // Fragment body
+    startCtx.beginPath();
+    for (let i = 0; i < frag.pts.length; i++) {
+      if (i === 0) startCtx.moveTo(frag.pts[i].x, frag.pts[i].y);
+      else startCtx.lineTo(frag.pts[i].x, frag.pts[i].y);
+    }
+    startCtx.closePath();
+    startCtx.strokeStyle = `rgba(245,245,220,${opacity})`;
+    startCtx.lineWidth = 1;
+    startCtx.stroke();
+    startCtx.fillStyle = `rgba(245,245,220,${opacity * 0.15})`;
+    startCtx.fill();
+
+    // Wave on fragment
+    const waveHz = 0.5 + 0.8 * Math.sin(0.15 * t);
+    const waveLen = 40;
+    startCtx.beginPath();
+    for (let i = 0; i <= 30; i++) {
+      const frac = i / 30;
+      const wx = (frac - 0.5) * waveLen * 2;
+      const wy = Math.sin(frac * waveHz * Math.PI * 4) * 4;
+      if (i === 0) startCtx.moveTo(wx, wy);
+      else startCtx.lineTo(wx, wy);
+    }
+    startCtx.strokeStyle = `rgba(224,64,251,0.6)`;
+    startCtx.lineWidth = 1;
+    startCtx.stroke();
+
+    startCtx.restore();
+  }
+}
+
+// ─── Main Game Loop ───────────────────────────────────────────────────────────
+function gameLoop(timestamp) {
+  requestAnimationFrame(gameLoop);
+
+  const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
+  lastTime = timestamp;
+  const now = performance.now();
+
+  if (gameState === 'start') {
+    startAnimTime += dt;
+    drawStartScreen(startAnimTime);
+    return;
+  }
+
+  // Update game speed
+  updateGameSpeed(dt);
+
+  if (gameState === 'playing') {
+    elapsedGameTime += dt;
+    checkSpawns();
+    updateEnemies(dt, now);
+    updateConductorRings(dt * gameSpeed);
+    updateProjectiles(now);
+    updateFragments(dt);
+    checkWaveComplete();
+  } else if (gameState === 'postwave' || gameState === 'gameover' || gameState === 'win') {
+    updateFragments(dt);
+  }
+
+  // Render Three.js scene
+  composer.render();
+
+  // Render HUD
+  drawHUD(now);
+}
+
+// ─── Start Screen Handler ─────────────────────────────────────────────────────
+document.getElementById('startScreen').addEventListener('pointerdown', () => {
+  gameState = 'playing';
+  document.getElementById('startScreen').classList.add('hidden');
+  initAudio().catch(() => {});
+  startWave(0);
+}, { once: true });
+
+// ─── Kick off ────────────────────────────────────────────────────────────────
+lastTime = performance.now();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
