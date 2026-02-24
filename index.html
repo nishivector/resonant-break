@@ -36,13 +36,10 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
 #postWave {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.88);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex-direction: column; align-items: center; justify-content: center;
   z-index: 50;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.5s ease;
   font-family: 'Courier New', monospace; color: #F5F5DC;
 }
-#postWave.visible { opacity: 1; pointer-events: all; }
 #postWave .wave-title { font-size: 14px; letter-spacing: 0.3em; color: #00FFB3; margin-bottom: 20px; }
 #postWave .score-display { font-size: 72px; color: #E040FB; text-shadow: 0 0 30px #E040FB; margin-bottom: 8px; }
 #postWave .score-label { font-size: 12px; letter-spacing: 0.2em; color: rgba(245,245,220,0.5); margin-bottom: 6px; }
@@ -54,40 +51,34 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
 }
 #postWave .continue-btn:hover { background: rgba(0,255,179,0.1); }
 
-#gameOver {
+#gameEndScreen {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.92);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   z-index: 60;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.8s ease;
   font-family: 'Courier New', monospace;
 }
-#gameOver.visible { opacity: 1; pointer-events: all; }
-#gameOver .go-title { font-size: 42px; color: #E040FB; letter-spacing: 0.2em; text-shadow: 0 0 40px #E040FB; margin-bottom: 16px; }
-#gameOver .go-score { font-size: 28px; color: #F5F5DC; margin-bottom: 8px; }
-#gameOver .go-hs { font-size: 14px; color: #00FFB3; letter-spacing: 0.15em; margin-bottom: 40px; }
-#gameOver .go-btn {
+#gameEndScreen .go-title { font-size: 42px; color: #E040FB; letter-spacing: 0.2em; text-shadow: 0 0 40px #E040FB; margin-bottom: 16px; }
+#gameEndScreen .go-score { font-size: 28px; color: #F5F5DC; margin-bottom: 8px; }
+#gameEndScreen .go-hs { font-size: 14px; color: #00FFB3; letter-spacing: 0.15em; margin-bottom: 40px; }
+#gameEndScreen .go-btn {
   font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 0.3em;
   color: #00FFB3; border: 1px solid #00FFB3; background: transparent; padding: 12px 28px;
   cursor: pointer;
 }
 
-#winScreen {
+#victoryScreen {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.95);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   z-index: 60;
-  opacity: 0; pointer-events: none;
-  transition: opacity 1s ease;
   font-family: 'Courier New', monospace;
 }
-#winScreen.visible { opacity: 1; pointer-events: all; }
-#winScreen .win-title { font-size: 38px; color: #00FFB3; letter-spacing: 0.2em; text-shadow: 0 0 40px #00FFB3; margin-bottom: 12px; }
-#winScreen .win-tagline { font-size: 14px; color: rgba(245,245,220,0.6); letter-spacing: 0.2em; margin-bottom: 30px; font-style: italic; }
-#winScreen .win-score { font-size: 64px; color: #E040FB; text-shadow: 0 0 30px #E040FB; margin-bottom: 8px; }
-#winScreen .win-hs { font-size: 13px; color: #00FFB3; letter-spacing: 0.15em; margin-bottom: 40px; }
-#winScreen .win-btn {
+#victoryScreen .win-title { font-size: 38px; color: #00FFB3; letter-spacing: 0.2em; text-shadow: 0 0 40px #00FFB3; margin-bottom: 12px; }
+#victoryScreen .win-tagline { font-size: 14px; color: rgba(245,245,220,0.6); letter-spacing: 0.2em; margin-bottom: 30px; font-style: italic; }
+#victoryScreen .win-score { font-size: 64px; color: #E040FB; text-shadow: 0 0 30px #E040FB; margin-bottom: 8px; }
+#victoryScreen .win-hs { font-size: 13px; color: #00FFB3; letter-spacing: 0.15em; margin-bottom: 40px; }
+#victoryScreen .win-btn {
   font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 0.3em;
   color: #00FFB3; border: 1px solid #00FFB3; background: transparent; padding: 12px 28px;
   cursor: pointer;
@@ -153,7 +144,7 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
 <!-- HUD Canvas is created dynamically in JS -->
 
 <!-- Post-wave screen -->
-<div id="postWave">
+<div id="postWave" style="display:none;">
   <div class="wave-title" id="postWaveTitle">WAVE 1 COMPLETE</div>
   <div class="score-display" id="postWaveScore">0</div>
   <div class="score-label">RESONANCE SCORE</div>
@@ -162,7 +153,7 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
 </div>
 
 <!-- Game Over -->
-<div id="gameOver">
+<div id="gameEndScreen" style="display:none;">
   <div class="go-title">SIGNAL LOST</div>
   <div class="go-score" id="goScore">0</div>
   <div class="go-hs" id="goHS"></div>
@@ -170,7 +161,7 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
 </div>
 
 <!-- Win Screen -->
-<div id="winScreen">
+<div id="victoryScreen" style="display:none;">
   <div class="win-title">RESONANCE COMPLETE</div>
   <div class="win-tagline">The gap between almost and perfect is a frequency you learn to feel.</div>
   <div class="win-score" id="winScore">0</div>
@@ -1448,11 +1439,11 @@ function showPostWave() {
   document.getElementById('postWaveTitle').textContent = `WAVE ${currentWave + 1} COMPLETE`;
   document.getElementById('postWaveScore').textContent = waveScore.toString();
   document.getElementById('postWaveHS').textContent = newHs ? '★ NEW HIGH SCORE' : (hs > 0 ? `BEST: ${hs}` : '');
-  document.getElementById('postWave').classList.add('visible');
+  document.getElementById('postWave').style.display = 'flex';
 }
 
 function continueGame() {
-  document.getElementById('postWave').classList.remove('visible');
+  document.getElementById('postWave').style.display = 'none';
   // Clear dead enemies
   enemies = enemies.filter(e => !e.dead);
   conductorRings = [];
@@ -1476,7 +1467,7 @@ function triggerGameOver() {
 
   document.getElementById('goScore').textContent = `SCORE: ${totalScore}`;
   document.getElementById('goHS').textContent = newHs ? '★ NEW HIGH SCORE' : `BEST: ${Math.max(hs, totalScore)}`;
-  document.getElementById('gameOver').classList.add('visible');
+  document.getElementById('gameEndScreen').style.display = 'flex';
 }
 
 function triggerWin() {
@@ -1489,7 +1480,7 @@ function triggerWin() {
 
   document.getElementById('winScore').textContent = totalScore.toString();
   document.getElementById('winHS').textContent = newHs ? '★ NEW HIGH SCORE' : `BEST: ${Math.max(hs, totalScore)}`;
-  document.getElementById('winScreen').classList.add('visible');
+  document.getElementById('victoryScreen').style.display = 'flex';
 }
 
 function resetGame() {
@@ -1575,11 +1566,11 @@ renderer.domElement.addEventListener('pointercancel', (e) => {
 // UI Button handlers
 document.getElementById('postWaveContinue').addEventListener('pointerdown', continueGame);
 document.getElementById('goBtn').addEventListener('pointerdown', () => {
-  document.getElementById('gameOver').classList.remove('visible');
+  document.getElementById('gameEndScreen').style.display = 'none';
   resetGame();
 });
 document.getElementById('winBtn').addEventListener('pointerdown', () => {
-  document.getElementById('winScreen').classList.remove('visible');
+  document.getElementById('victoryScreen').style.display = 'none';
   resetGame();
 });
 
@@ -1755,16 +1746,22 @@ function gameLoop(timestamp) {
 }
 
 // ─── Start Screen Handler ─────────────────────────────────────────────────────
-document.getElementById('startScreen').addEventListener('pointerdown', (e) => {
-  e.stopPropagation();
+let startHandled = false;
+function handleStartInput(e) {
+  if (startHandled) return;
+  startHandled = true;
+  if (e && e.stopPropagation) e.stopPropagation();
   const ss = document.getElementById('startScreen');
-  ss.classList.add('hidden');
-  // Remove from flow after transition
-  setTimeout(() => { ss.style.display = 'none'; }, 400);
+  ss.style.opacity = '0';
+  ss.style.pointerEvents = 'none';
+  setTimeout(() => { ss.style.display = 'none'; }, 350);
   initAudio().catch(() => {});
   startWave(0);
   gameState = 'playing';
-}, { once: true });
+}
+document.getElementById('startScreen').addEventListener('pointerdown', handleStartInput, { once: true });
+document.getElementById('startScreen').addEventListener('touchend', handleStartInput, { once: true });
+document.getElementById('startScreen').addEventListener('click', handleStartInput, { once: true });
 
 // ─── Kick off ────────────────────────────────────────────────────────────────
 lastTime = performance.now();
