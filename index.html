@@ -21,7 +21,7 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
   z-index: 100;
   touch-action: none;
 }
-#startScreen.hidden { opacity: 0; pointer-events: none; }
+#startScreen.hidden { opacity: 0; pointer-events: none; display: none; }
 #startCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 #startSVG {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -160,13 +160,13 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
   <button class="go-btn" id="goBtn">TRY AGAIN</button>
 </div>
 
-<!-- Win Screen -->
+<!-- Victory Screen -->
 <div id="victoryScreen" style="display:none;">
   <div class="win-title">RESONANCE COMPLETE</div>
   <div class="win-tagline">The gap between almost and perfect is a frequency you learn to feel.</div>
-  <div class="win-score" id="winScore">0</div>
-  <div class="win-hs" id="winHS"></div>
-  <button class="win-btn" id="winBtn">PLAY AGAIN</button>
+  <div class="win-score" id="victoryScore">0</div>
+  <div class="win-hs" id="victoryHS"></div>
+  <button class="win-btn" id="victoryBtn">PLAY AGAIN</button>
 </div>
 
 <!-- GitHub link -->
@@ -1478,8 +1478,8 @@ function triggerWin() {
   const newHs = totalScore > hs;
   if (newHs) localStorage.setItem(SCORE_KEY, totalScore.toString());
 
-  document.getElementById('winScore').textContent = totalScore.toString();
-  document.getElementById('winHS').textContent = newHs ? '★ NEW HIGH SCORE' : `BEST: ${Math.max(hs, totalScore)}`;
+  document.getElementById('victoryScore').textContent = totalScore.toString();
+  document.getElementById('victoryHS').textContent = newHs ? '★ NEW HIGH SCORE' : `BEST: ${Math.max(hs, totalScore)}`;
   document.getElementById('victoryScreen').style.display = 'flex';
 }
 
@@ -1569,7 +1569,7 @@ document.getElementById('goBtn').addEventListener('pointerdown', () => {
   document.getElementById('gameEndScreen').style.display = 'none';
   resetGame();
 });
-document.getElementById('winBtn').addEventListener('pointerdown', () => {
+document.getElementById('victoryBtn').addEventListener('pointerdown', () => {
   document.getElementById('victoryScreen').style.display = 'none';
   resetGame();
 });
@@ -1752,15 +1752,17 @@ function handleStartInput(e) {
   startHandled = true;
   if (e && e.stopPropagation) e.stopPropagation();
   const ss = document.getElementById('startScreen');
+  // Immediately hide — no transition delay for smoke test reliability
+  ss.style.transition = 'none';
   ss.style.opacity = '0';
   ss.style.pointerEvents = 'none';
-  setTimeout(() => { ss.style.display = 'none'; }, 350);
+  ss.style.display = 'none';
   initAudio().catch(() => {});
   startWave(0);
   gameState = 'playing';
 }
 document.getElementById('startScreen').addEventListener('pointerdown', handleStartInput, { once: true });
-document.getElementById('startScreen').addEventListener('touchend', handleStartInput, { once: true });
+document.getElementById('startScreen').addEventListener('touchstart', handleStartInput, { once: true });
 document.getElementById('startScreen').addEventListener('click', handleStartInput, { once: true });
 
 // ─── Kick off ────────────────────────────────────────────────────────────────
