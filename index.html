@@ -112,10 +112,10 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
       x="50%" y="44%"
       text-anchor="middle"
       font-family="'Courier New', monospace"
-      font-size="clamp(28px, 7vw, 52px)"
+      font-size="32"
       font-weight="700"
       fill="#E040FB"
-      letter-spacing="0.12em"
+      letter-spacing="0.08em"
       filter="url(#glow)"
       style="animation: fadeIn 1.8s ease-out forwards; opacity: 0;"
     >RESONANT BREAK</text>
@@ -123,7 +123,7 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
       x="50%" y="54%"
       text-anchor="middle"
       font-family="'Courier New', monospace"
-      font-size="clamp(11px, 3vw, 16px)"
+      font-size="13"
       fill="#F5F5DC"
       letter-spacing="0.2em"
       opacity="0.7"
@@ -133,7 +133,7 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
       x="50%" y="70%"
       text-anchor="middle"
       font-family="'Courier New', monospace"
-      font-size="clamp(10px, 2.5vw, 13px)"
+      font-size="11"
       fill="#00FFB3"
       letter-spacing="0.25em"
       style="animation: blink 1s step-end infinite; opacity: 0; animation-delay: 1.5s; animation-fill-mode: forwards;"
@@ -354,19 +354,19 @@ async function initAudio() {
   audioReady = true;
 
   // Master chain
-  masterVolume = new Tone.Volume(-6).toDestination();
+  masterVolume = new Tone.Volume(0).toDestination();
   reverb = new Tone.Reverb({ decay: 2.5, wet: 0.25 }).connect(masterVolume);
 
   // Drone — D minor pad (D2 sine)
   droneFilter = new Tone.Filter({ frequency: 800, type: 'lowpass' }).connect(reverb);
-  droneOsc = new Tone.Oscillator({ type: 'sine', frequency: 73.4, volume: -22 }).connect(droneFilter);
+  droneOsc = new Tone.Oscillator({ type: 'sine', frequency: 73.4, volume: -14 }).connect(droneFilter);
   droneOsc.start();
 
   // Sub-bass kick every 4 bars at 140 BPM
   subKickSynth = new Tone.MembraneSynth({
     pitchDecay: 0.08, octaves: 4,
     envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.1 },
-    volume: -20
+    volume: -10
   }).connect(masterVolume);
 
   const barDuration = (60 / 140) * 4; // 4 beats per bar
@@ -398,7 +398,7 @@ function addEnemySaw(id, hz) {
   if (!audioReady) return;
   if (enemySaws[id]) return;
   const osc = new Tone.Oscillator({
-    type: 'sawtooth', frequency: hzToNote(hz), volume: -28
+    type: 'sawtooth', frequency: hzToNote(hz), volume: -14
   }).connect(reverb);
   osc.start();
   enemySaws[id] = osc;
@@ -424,7 +424,7 @@ function playChargeSound() {
   if (!audioReady) return;
   try {
     if (chargeOsc) { try { chargeOsc.stop(); chargeOsc.dispose(); } catch(e) {} }
-    chargeOsc = new Tone.Oscillator({ type: 'sine', frequency: 220, volume: -18 });
+    chargeOsc = new Tone.Oscillator({ type: 'sine', frequency: 220, volume: -8 });
     chargeOsc.connect(masterVolume);
     chargeOsc.start();
     chargeOsc.frequency.rampTo(playerHz * 200 + 100, 0.3);
