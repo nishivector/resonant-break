@@ -84,6 +84,22 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
   color: #00FFB3; border: 1px solid #00FFB3; background: transparent; padding: 12px 28px;
   cursor: pointer;
 }
+#instructionsScreen {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: #1A0A2E;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+  font-family: 'Courier New', monospace;
+  animation: fadeInScreen 0.3s ease-out forwards;
+}
+#instructionsScreen.hiding { animation: fadeOutScreen 0.3s ease-out forwards; }
+#instructionsScreen.hidden { display: none; }
+@keyframes fadeInScreen { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOutScreen { from { opacity: 1; } to { opacity: 0; } }
 </style>
 </head>
 <body>
@@ -148,6 +164,21 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
       style="opacity: 0; animation: hintFadeIn 0.8s ease-out 2.5s forwards;"
     >Hold · Drag to tune · Release at peak brightness</text>
   </svg>
+</div>
+
+<!-- Instructions Screen -->
+<div id="instructionsScreen" class="hidden">
+  <div style="max-width:320px;width:100%;display:flex;flex-direction:column;align-items:center;gap:0;">
+    <div style="font-size:14px;color:#E040FB;letter-spacing:0.2em;font-family:'Courier New',monospace;margin-bottom:28px;">HOW TO PLAY</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.8);font-family:'Courier New',monospace;line-height:2.2em;text-align:left;width:100%;padding:0 16px;box-sizing:border-box;">
+      <div>▼&nbsp;&nbsp;Enemies broadcast their frequency as a wave</div>
+      <div>⟵⟶&nbsp;&nbsp;Hold and drag left/right to tune your weapon</div>
+      <div>◉&nbsp;&nbsp;Release when the enemy pulses brightest</div>
+      <div style="margin-top:0.4em;opacity:0.6;font-size:12px;">Tighter waves = higher frequency. Match it.</div>
+    </div>
+    <div style="width:120px;height:1px;background:rgba(224,64,251,0.3);margin:24px auto 0;"></div>
+    <div style="font-size:12px;color:#E040FB;margin-top:20px;animation:blink 1s step-end infinite;animation-delay:0.8s;animation-fill-mode:forwards;opacity:0;" id="instructionsTapPrompt">Tap to begin</div>
+  </div>
 </div>
 
 <!-- HUD Canvas is created dynamically in JS -->
@@ -1803,13 +1834,26 @@ function handleStartInput(e) {
   ss.style.opacity = '0';
   ss.style.pointerEvents = 'none';
   ss.style.display = 'none';
-  initAudio().catch(() => {});
-  startWave(0);
-  gameState = 'playing';
+  showInstructions();
 }
 document.getElementById('startScreen').addEventListener('pointerdown', handleStartInput, { once: true });
 document.getElementById('startScreen').addEventListener('touchstart', handleStartInput, { once: true });
 document.getElementById('startScreen').addEventListener('click', handleStartInput, { once: true });
+
+function showInstructions() {
+  document.getElementById('instructionsScreen').classList.remove('hidden');
+  initAudio().catch(() => {});
+}
+function startFromInstructions() {
+  const el = document.getElementById('instructionsScreen');
+  el.classList.add('hiding');
+  setTimeout(() => {
+    el.classList.add('hidden');
+    startWave(0);
+    gameState = 'playing';
+  }, 300);
+}
+document.getElementById('instructionsScreen').addEventListener('pointerdown', startFromInstructions, { once: true });
 
 // ─── Kick off ────────────────────────────────────────────────────────────────
 lastTime = performance.now();
