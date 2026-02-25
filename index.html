@@ -30,6 +30,7 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
 @keyframes crystalPulse { 0%,100% { transform: scale(1.0); } 50% { transform: scale(1.04); } }
+@keyframes hintFadeIn { from { opacity: 0; } to { opacity: 0.5; } }
 
 #hudCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
@@ -97,7 +98,7 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
         <feComposite in="SourceGraphic" in2="blur" operator="over"/>
       </filter>
     </defs>
-    <!-- Option B: Crystal silhouette -->
+    <!-- Crystal silhouette -->
     <g id="crystalGroup">
       <path id="crystalPath"
         d="M0,-38 L10,-12 L32,-8 L14,8 L20,34 L0,20 L-20,34 L-14,8 L-32,-8 L-10,-12 Z"
@@ -107,15 +108,15 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
         style="animation: crystalPulse 3.2s ease-in-out infinite; transform-origin: 0 0;"
       />
     </g>
-    <!-- Option A: Title glow - responsive font size -->
+    <!-- Title — two lines on narrow screens via tspan, single line on wide -->
     <text id="mainTitle"
       x="50%" y="44%"
       text-anchor="middle"
       font-family="'Courier New', monospace"
-      font-size="32"
+      font-size="26"
       font-weight="700"
       fill="#E040FB"
-      letter-spacing="0.08em"
+      letter-spacing="0.06em"
       filter="url(#glow)"
       style="animation: fadeIn 1.8s ease-out forwards; opacity: 0;"
     >RESONANT BREAK</text>
@@ -138,6 +139,14 @@ canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; touch-acti
       letter-spacing="0.25em"
       style="animation: blink 1s step-end infinite; opacity: 0; animation-delay: 1.5s; animation-fill-mode: forwards;"
     >PRESS ANYWHERE TO BEGIN</text>
+    <text id="hintText"
+      x="50%" y="76%"
+      text-anchor="middle"
+      font-family="'Courier New', monospace"
+      font-size="12"
+      fill="#F5F5DC"
+      style="opacity: 0; animation: hintFadeIn 0.8s ease-out 2.5s forwards;"
+    >Hold · Drag to tune · Release at peak brightness</text>
   </svg>
 </div>
 
@@ -185,6 +194,7 @@ const COL_PRIMARY = '#E040FB';
 const COL_SECONDARY = '#F5F5DC';
 const COL_ACCENT = '#00FFB3';
 const COL_AMBER = '#FFB300';
+const COL_LOCK = '#00FFB3';
 
 // Wave configuration
 const WAVES = [
@@ -273,6 +283,9 @@ let wasLocked = false;
 
 // Near-win state
 let nearWin = false;
+
+// Frequency lock flash effects on enemies (Polish 2)
+let lockFlashes = []; // { enemyId, timer }
 
 // ─── THREE.JS Setup ──────────────────────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -384,6 +397,11 @@ async function initAudio() {
     envelope: { attack: 0.01, decay: 0.05, sustain: 1.0, release: 0.1 },
     volume: -14
   }).connect(masterVolume);
+
+  // Re-add saws for any enemies that spawned before audio was ready
+  for (const e of enemies) {
+    if (!e.dead) addEnemySaw(e.id, e.currentHz);
+  }
 }
 
 function hzToNote(hz) {
@@ -448,8 +466,8 @@ function playPerfectStrike(hz) {
     const freq = hzToNote(hz);
     const syn = new Tone.Synth({
       oscillator: { type: 'sine' },
-      envelope: { attack: 0.005, decay: 0.0, sustain: 1.0, release: 1.2 },
-      volume: -10
+      envelope: { attack: 0.002, decay: 0.0, sustain: 1.0, release: 1.2 },
+      volume: -4
     }).connect(reverb);
     syn.triggerAttackRelease(freq, 1.0);
     setTimeout(() => { try { syn.dispose(); } catch(e) {} }, 2500);
@@ -492,8 +510,8 @@ function playChainShatter(baseHz) {
         const freq = hzToNote(baseHz) * Math.pow(2, i/12);
         const syn = new Tone.Synth({
           oscillator: { type: 'sine' },
-          envelope: { attack: 0.005, decay: 0.0, sustain: 1.0, release: 1.2 },
-          volume: -8
+          envelope: { attack: 0.002, decay: 0.0, sustain: 1.0, release: 1.2 },
+          volume: -4
         }).connect(reverb);
         syn.triggerAttackRelease(freq, 1.0);
         setTimeout(() => { try { syn.dispose(); } catch(e) {} }, 2500);
@@ -1172,8 +1190,6 @@ function updateEnemies(dt, now) {
     // Conductor ring: sync waveforms
     for (const ring of conductorRings) {
       if (ring.overlappedEnemies.has(enemy.id)) {
-        // Temporarily sync Hz for visual only (not scoring)
-        // We'll handle this in the draw pass
         enemy.syncedHz = WAVES[currentWave]?.hasConductor ? 1.6 : enemy.currentHz;
       } else {
         enemy.syncedHz = null;
@@ -1181,9 +1197,26 @@ function updateEnemies(dt, now) {
     }
   }
 
-  // Remove dead enemies from list after a delay
-  const toRemove = enemies.filter(e => e.dead && !e.mesh);
-  // Already removed from scene, just clean up
+  // Polish 2: check frequency lock for all live enemies and fire lock flash
+  if (isCharging && gameState === 'playing') {
+    for (const enemy of enemies) {
+      if (enemy.dead) continue;
+      const freqDiff = Math.abs(enemy.currentHz - playerHz) / enemy.currentHz;
+      if (freqDiff <= 0.05) {
+        // Check if not already flashing
+        const existing = lockFlashes.find(lf => lf.enemyId === enemy.id);
+        if (!existing) {
+          lockFlashes.push({ enemyId: enemy.id, timer: 80 });
+        }
+      }
+    }
+  }
+
+  // Decay lock flashes
+  for (let i = lockFlashes.length - 1; i >= 0; i--) {
+    lockFlashes[i].timer -= 16;
+    if (lockFlashes[i].timer <= 0) lockFlashes.splice(i, 1);
+  }
 }
 
 // ─── Slow-motion ──────────────────────────────────────────────────────────────
@@ -1223,7 +1256,6 @@ function drawHUD(now) {
   vig.addColorStop(0, 'rgba(0,0,0,0)');
   vig.addColorStop(1, 'rgba(0,0,0,0.45)');
   hud.fillStyle = vig;
-  hud.fillStyle = vig;
   hud.fillRect(0, 0, W, H);
 
   // Player oscilloscope ring
@@ -1241,32 +1273,33 @@ function drawHUD(now) {
     hud.stroke();
   }
 
-  // Lock flash
+  // Lock flash detection
   const isLocked = (gameState === 'playing' && isCharging && enemies.some(e => !e.dead && Math.abs(e.currentHz - playerHz) / e.currentHz <= 0.05));
   if (isLocked && !wasLocked) { lockFlashTimer = 80; playLockSound(); }
   wasLocked = isLocked;
   if (lockFlashTimer > 0) { lockFlashTimer -= 16; }
 
-  // Main ring
+  // Main ring glow — brighter when charging
+  const chargePulse = isCharging ? (0.6 + 0.4 * Math.sin(now / 80)) : 1.0;
   hud.beginPath();
   hud.arc(ringX, ringY, ringR, 0, Math.PI * 2);
   hud.strokeStyle = lockFlashTimer > 0 ? COL_ACCENT : COL_PRIMARY;
-  hud.lineWidth = 2;
+  hud.lineWidth = isCharging ? 3 : 2;
   hud.shadowColor = lockFlashTimer > 0 ? COL_ACCENT : COL_PRIMARY;
-  hud.shadowBlur = 18;
+  hud.shadowBlur = isCharging ? 28 * chargePulse : 18;
   hud.stroke();
   hud.shadowBlur = 0;
 
-  // Waveform on ring circumference (when charging)
-  if (isCharging || gameState === 'playing') {
+  // Waveform on ring circumference (always in playing state or when charging)
+  if (gameState === 'playing') {
     const cycles = playerHz * 4; // 4 cycles at 1Hz
-    const waveAmp = 8;
+    const waveAmp = isCharging ? 12 : 8;
     hud.beginPath();
     const steps = 128;
     for (let i = 0; i <= steps; i++) {
       const frac = i / steps;
       const angle = frac * Math.PI * 2 - Math.PI / 2;
-      const wave = Math.sin(frac * cycles * Math.PI * 2) * waveAmp;
+      const wave = Math.sin(frac * cycles * Math.PI * 2 + now / 200) * waveAmp;
       const r2 = ringR + wave;
       const px = ringX + Math.cos(angle) * r2;
       const py = ringY + Math.sin(angle) * r2;
@@ -1275,9 +1308,9 @@ function drawHUD(now) {
     }
     hud.closePath();
     hud.strokeStyle = lockFlashTimer > 0 ? COL_ACCENT : COL_PRIMARY;
-    hud.lineWidth = 1.5;
+    hud.lineWidth = isCharging ? 2 : 1.5;
     hud.shadowColor = COL_PRIMARY;
-    hud.shadowBlur = 12;
+    hud.shadowBlur = isCharging ? 20 : 12;
     hud.stroke();
     hud.shadowBlur = 0;
   }
@@ -1302,11 +1335,26 @@ function drawHUD(now) {
     hud.shadowBlur = 0;
   }
 
-  // Draw enemy waveforms on hud canvas (cream lines)
+  // Draw enemy waveforms and lock flash rings on hud canvas
   for (const enemy of enemies) {
     if (enemy.dead) continue;
     const eScreen = worldToScreen(enemy.x, enemy.y);
     drawEnemyWaveform(enemy, eScreen.x, eScreen.y, now);
+
+    // Polish 2: lock flash ring around enemy
+    const lf = lockFlashes.find(f => f.enemyId === enemy.id);
+    if (lf && lf.timer > 0) {
+      const lockAlpha = Math.min(1.0, lf.timer / 40);
+      const lockRadius = 55 * DEPTH_SCALES[enemy.depth] * (enemy.isConductor ? 2.0 : 1.0);
+      hud.beginPath();
+      hud.arc(eScreen.x, eScreen.y, lockRadius, 0, Math.PI * 2);
+      hud.strokeStyle = `rgba(0,255,179,${lockAlpha})`;
+      hud.lineWidth = 3;
+      hud.shadowColor = COL_LOCK;
+      hud.shadowBlur = 20;
+      hud.stroke();
+      hud.shadowBlur = 0;
+    }
   }
 
   // Draw conductor rings
@@ -1413,7 +1461,6 @@ function drawEnemyWaveform(enemy, sx, sy, now) {
 
   // Crack lines on armoured enemies
   if (enemy.cracked && !enemy.dead) {
-    const eScreen = worldToScreen(enemy.x, enemy.y);
     hud.beginPath();
     hud.moveTo(sx - 15 * depth, sy - 20 * depth);
     hud.lineTo(sx + 5 * depth, sy + 25 * depth);
@@ -1497,6 +1544,7 @@ function resetGame() {
   hitEffects = [];
   scorePops = [];
   spawnQueue = [];
+  lockFlashes = [];
 
   totalScore = 0;
   waveScore = 0;
@@ -1508,6 +1556,7 @@ function resetGame() {
   isCharging = false;
   nearWin = false;
   enemyIdCounter = 0;
+
   enemiesSpawnedThisWave = 0;
   enemiesKilledThisWave = 0;
 
@@ -1659,8 +1708,6 @@ function drawStartScreen(t) {
 
   // Crystal fragments
   for (const frag of startFragments) {
-    // Move
-    const speed = 8 + Math.sqrt(frag.vx*frag.vx + frag.vy*frag.vy);
     frag.x += frag.vx * 0.016;
     frag.y += frag.vy * 0.016;
     frag.rot += frag.rotSpeed * 0.016;
@@ -1752,7 +1799,6 @@ function handleStartInput(e) {
   startHandled = true;
   if (e && e.stopPropagation) e.stopPropagation();
   const ss = document.getElementById('startScreen');
-  // Immediately hide — no transition delay for smoke test reliability
   ss.style.transition = 'none';
   ss.style.opacity = '0';
   ss.style.pointerEvents = 'none';
